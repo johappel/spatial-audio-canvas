@@ -65,6 +65,10 @@ export function createGamesPlugin(): SacPlugin {
         if (envelope.channel !== 'game') {
           return;
         }
+        // Spiele wirken nur in der eigenen Insel.
+        if (envelope.islandId && envelope.islandId !== ctx.localIslandId()) {
+          return;
+        }
         const payload = envelope.payload as GameMessagePayload;
         const game = games.get(payload.gameId);
         const text = game?.handle(envelope.type, payload.data) ?? null;

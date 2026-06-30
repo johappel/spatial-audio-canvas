@@ -20,6 +20,14 @@ export function createEmotesPlugin(): SacPlugin {
           return;
         }
         const payload = envelope.payload as EmotePayload;
+        // 'wave' (Winken) ist raumuebergreifend; alle anderen Emotes nur in der eigenen Insel.
+        if (
+          payload.emote !== 'wave' &&
+          envelope.islandId &&
+          envelope.islandId !== ctx.localIslandId()
+        ) {
+          return;
+        }
         const def = DEFAULT_EMOTES.find((e) => e.id === payload.emote);
         const name = $participants.get()[envelope.senderId]?.displayName ?? 'Jemand';
         const label = def ? def.label : payload.emote;

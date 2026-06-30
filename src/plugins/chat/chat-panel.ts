@@ -5,15 +5,18 @@ export interface ChatEntry {
   senderName: string;
   text: string;
   sentAt: number;
+  scope?: 'island' | 'global';
 }
 
 export class ChatPanel extends LitElement {
   static properties = {
     entries: { state: true },
+    scope: { state: true },
   };
 
   entries: ChatEntry[] = [];
-  onSend: (text: string) => void = () => {};
+  scope: 'island' | 'global' = 'island';
+  onSend: (text: string, scope: 'island' | 'global') => void = () => {};
 
   static styles = css`
     :host {
@@ -69,6 +72,21 @@ export class ChatPanel extends LitElement {
       font-size: 1rem;
       cursor: pointer;
     }
+    .badge {
+      font-size: 0.7rem;
+      background: var(--sac-color-accent);
+      color: var(--sac-color-accent-contrast);
+      border-radius: var(--sac-radius-pill);
+      padding: 0 6px;
+    }
+    .scope {
+      display: flex;
+      gap: var(--sac-space-2);
+      align-items: center;
+      margin-top: var(--sac-space-2);
+      font-size: 0.9rem;
+      color: var(--sac-color-muted);
+    }
   `;
 
   addMessage(entry: ChatEntry): void {
@@ -80,7 +98,7 @@ export class ChatPanel extends LitElement {
     const input = this.renderRoot.querySelector('input');
     const value = input?.value.trim();
     if (input && value) {
-      this.onSend(value);
+      this.onSend(value, this.scope);
       input.value = '';
     }
   }
@@ -92,6 +110,7 @@ export class ChatPanel extends LitElement {
         <ul>
           ${this.entries.map(
             (entry) => html`<li>
+              ${entry.scope === 'global' ? html`<span class="badge">global</span> ` : ''}
               <span class="name">${entry.senderName}:</span> ${entry.text}
             </li>`,
           )}
@@ -101,6 +120,15 @@ export class ChatPanel extends LitElement {
           <input id="chat-input" type="text" autocomplete="off" placeholder="Nachricht ..." />
           <button type="submit">Senden</button>
         </form>
+        <label class="scope">
+          <input
+            type="checkbox"
+            .checked=${this.scope === 'global'}
+            @change=${(event: Event) =>
+              (this.scope = (event.target as HTMLInputElement).checked ? 'global' : 'island')}
+          />
+          An alle Inseln senden (global)
+        </label>
       </section>
     `;
   }

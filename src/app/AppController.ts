@@ -121,18 +121,21 @@ export class AppController {
       announcer: this.announcer,
       ui: this.ui,
       localParticipantId: () => this.localId,
+      localIslandId: () => $currentIslandId.get(),
       sendMessage: (channel: MessageChannel, type: string, payload: unknown) => {
+        const envelope: MessageEnvelope = {
+          channel,
+          type,
+          senderId: this.localId,
+          sentAt: Date.now(),
+          islandId: $currentIslandId.get(),
+          payload,
+        };
         if (this.dataChannelBus) {
-          this.dataChannelBus.send(channel, type, payload);
+          this.dataChannelBus.sendEnvelope(envelope);
         } else {
           // Offline-Fallback: lokal zustellen, damit Plugins auch ohne Server wirken.
-          this.bus.emit('message:received', {
-            channel,
-            type,
-            senderId: this.localId,
-            sentAt: Date.now(),
-            payload,
-          });
+          this.bus.emit('message:received', envelope);
         }
       },
     };
@@ -637,7 +640,7 @@ export class AppController {
       if (!source || !this.media.has(source.kind)) {
         continue;
       }
-      const player = this.media.create(this.audio.context, this.audio.masterGain, source);
+      const player = this.media.create(this.audio.context, this.audio.ambientGain, source);
       player.setVolume(this.ambientVolumeFor(id));
       player.play();
       this.ambientPlayers.set(id, player);
@@ -809,9 +812,10 @@ export class AppController {
           (sum, p) => sum + (p.isSpeaking ? p.speakingLevel : 0),
           0,
         );
-        // Belegung als Basis + Sprechen als Modulation.
-        const base = Math.min(0.12, list.length * 0.03);
-        const activity = Math.min(0.25, base + speakingSum * 0.5);
+        // Belegung als sehr leise Basis + Sprechen als deutliche Modulation,
+        // damit eine stille Nachbarinsel nicht wie laufendes Ambiente klingt.
+        const base = Math.min(0.04, list.length * 0.01);
+        const activity = Math.min(0.22, base + speakingSum * 0.6);
         const distance = this.murmurDistance.get(islandId) ?? 0;
         bed.setActivity(activity * distance);
       });

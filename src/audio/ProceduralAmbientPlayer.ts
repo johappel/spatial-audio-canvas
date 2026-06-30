@@ -42,6 +42,9 @@ export class ProceduralAmbientPlayer implements MediaPlayback {
   private readonly source: AudioBufferSourceNode;
   private readonly gain: GainNode;
   private readonly preset: Preset;
+  // Referenzen auf die Filter festhalten, sonst sammelt der GC sie ein und die
+  // Audiokette reisst nach ~1 Sekunde ab (Web-Audio-Stille).
+  private readonly nodes: AudioNode[] = [];
   private volume: number;
   private started = false;
   private playing = false;
@@ -73,6 +76,7 @@ export class ProceduralAmbientPlayer implements MediaPlayback {
     highpass.connect(lowpass);
     lowpass.connect(this.gain);
     this.gain.connect(destination);
+    this.nodes.push(highpass, lowpass);
   }
 
   private targetGain(): number {
@@ -85,18 +89,24 @@ export class ProceduralAmbientPlayer implements MediaPlayback {
       this.started = true;
     }
     this.playing = true;
-    this.gain.gain.setTargetAtTime(this.targetGain(), this.ctx.currentTime, 0.3);
+    const now = this.ctx.currentTime;
+    this.gain.gain.cancelScheduledValues(now);
+    this.gain.gain.setValueAtTime(this.targetGain(), now);
   }
 
   stop(): void {
     this.playing = false;
-    this.gain.gain.setTargetAtTime(0, this.ctx.currentTime, 0.3);
+    const now = this.ctx.currentTime;
+    this.gain.gain.cancelScheduledValues(now);
+    this.gain.gain.setValueAtTime(0, now);
   }
 
   setVolume(value: number): void {
     this.volume = value;
     if (this.playing) {
-      this.gain.gain.setTargetAtTime(this.targetGain(), this.ctx.currentTime, 0.2);
+      const now = this.ctx.currentTime;
+      this.gain.gain.cancelScheduledValues(now);
+      this.gain.gain.setValueAtTime(this.targetGain(), now);
     }
   }
 
@@ -106,6 +116,7 @@ export class ProceduralAmbientPlayer implements MediaPlayback {
     } catch {
       // bereits gestoppt
     }
+    this.source.disconnect();
     this.gain.disconnect();
   }
 }

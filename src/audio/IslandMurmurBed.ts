@@ -23,6 +23,8 @@ export class IslandMurmurBed {
   private readonly source: AudioBufferSourceNode;
   private readonly gain: GainNode;
   private readonly panner: StereoPannerNode;
+  // Filter-Referenzen festhalten (sonst GC-bedingte Stille nach ~1 Sekunde).
+  private readonly nodes: AudioNode[] = [];
 
   constructor(engine: AudioEngine) {
     this.ctx = engine.context;
@@ -53,8 +55,9 @@ export class IslandMurmurBed {
     bandpass.connect(lowpass);
     lowpass.connect(this.gain);
     this.gain.connect(this.panner);
-    this.panner.connect(engine.masterGain);
+    this.panner.connect(engine.ambientGain);
     this.source.start();
+    this.nodes.push(bandpass, lowpass);
   }
 
   setPan(value: number): void {

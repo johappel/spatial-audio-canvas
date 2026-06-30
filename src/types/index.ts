@@ -107,11 +107,15 @@ export type MessageEnvelope<TPayload = unknown> = {
   senderId: string;
   // Zeitstempel in ms seit Epoch (lokal gesetzt).
   sentAt: number;
+  // Insel des Absenders zum Sendezeitpunkt (fuer raumbezogene Filterung).
+  islandId?: string;
   payload: TPayload;
 };
 
 export type ChatMessagePayload = {
   text: string;
+  // 'island' = nur aktuelle Insel, 'global' = ganzer Raum. Fehlt = Insel.
+  scope?: 'island' | 'global';
 };
 
 export type EmotePayload = {

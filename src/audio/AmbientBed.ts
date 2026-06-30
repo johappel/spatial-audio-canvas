@@ -21,6 +21,8 @@ const MAX_GAIN = 0.35;
 export class AmbientBed {
   private readonly source: AudioBufferSourceNode;
   private readonly gain: GainNode;
+  // Filter-Referenz festhalten (sonst GC-bedingte Stille nach ~1 Sekunde).
+  private readonly nodes: AudioNode[] = [];
 
   constructor(engine: AudioEngine, volume: number) {
     const ctx = engine.context;
@@ -37,8 +39,9 @@ export class AmbientBed {
 
     this.source.connect(lowpass);
     lowpass.connect(this.gain);
-    this.gain.connect(engine.masterGain);
+    this.gain.connect(engine.ambientGain);
     this.source.start();
+    this.nodes.push(lowpass);
   }
 
   private clamp(volume: number): number {

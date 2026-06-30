@@ -39,6 +39,13 @@ export class DataChannelBus {
     this.bus.emit('message:received', envelope);
   }
 
+  // Sendet einen bereits vollstaendig aufgebauten Umschlag (inkl. islandId)
+  // und spiegelt ihn lokal.
+  sendEnvelope(envelope: MessageEnvelope): void {
+    this.broadcast(envelope);
+    this.bus.emit('message:received', envelope);
+  }
+
   private broadcast(envelope: MessageEnvelope): void {
     this.peers.broadcast(JSON.stringify(envelope));
   }

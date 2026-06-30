@@ -17,4 +17,6 @@ export interface AppContext {
   ui: UiRegionRegistry;
   sendMessage(channel: MessageChannel, type: string, payload: unknown): void;
   localParticipantId(): string;
+  // Aktuelle Insel des lokalen Nutzers (fuer raumbezogene Plugin-Filterung).
+  localIslandId(): string;
 }
