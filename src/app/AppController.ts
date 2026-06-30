@@ -168,7 +168,11 @@ export class AppController {
         audio: {
           autoGainControl: true,
           noiseSuppression: true,
-          echoCancellation: true,
+          // echoCancellation bewusst AUS: ist es an, oeffnet Chrome die Audio-
+          // ausgabe im "Communications"-Modus, woraufhin Windows alle anderen
+          // Klaenge (auch das Ambiente) um ~80% absenkt, sobald WebRTC-Audio
+          // eines zweiten Nutzers fliesst. Kopfhoerer sind ohnehin empfohlen.
+          echoCancellation: false,
         },
         video: false,
       });
