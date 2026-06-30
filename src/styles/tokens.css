@@ -1,0 +1,78 @@
+/* Design-Tokens als CSS Custom Properties.
+   Diese Variablen durchdringen auch Shadow-DOM-Grenzen und sind damit die
+   zentrale Stellschraube fuer Design-Erweiterungen und Themes. */
+:root {
+  color-scheme: light dark;
+
+  --sac-color-bg: #f4f1ea;
+  --sac-color-surface: #fffdf7;
+  --sac-color-text: #1d1b16;
+  --sac-color-muted: #5c574d;
+  --sac-color-border: #d8d0c2;
+
+  --sac-color-accent: #3a6ea5;
+  --sac-color-accent-contrast: #ffffff;
+
+  --sac-color-seat-free: #cfe8d4;
+  --sac-color-seat-occupied: #ddd6c8;
+  --sac-color-seat-self: #f2c14e;
+  --sac-color-speaking: #f2c14e;
+  --sac-color-focus: #1b4f8a;
+  --sac-color-danger: #b3402f;
+
+  --sac-radius-sm: 8px;
+  --sac-radius-md: 14px;
+  --sac-radius-lg: 24px;
+  --sac-radius-pill: 999px;
+
+  --sac-space-1: 4px;
+  --sac-space-2: 8px;
+  --sac-space-3: 12px;
+  --sac-space-4: 16px;
+  --sac-space-5: 24px;
+  --sac-space-6: 32px;
+
+  --sac-font:
+    system-ui, -apple-system, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+  --sac-font-size: 18px;
+
+  --sac-tap-target: 48px;
+  --sac-motion-duration: 240ms;
+  --sac-focus-ring: 3px solid var(--sac-color-focus);
+  --sac-shadow: 0 2px 10px rgba(29, 27, 22, 0.12);
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --sac-color-bg: #16140f;
+    --sac-color-surface: #221f18;
+    --sac-color-text: #f3efe6;
+    --sac-color-muted: #b6ad9d;
+    --sac-color-border: #3a352b;
+    --sac-color-accent: #7eb0e0;
+    --sac-color-accent-contrast: #10202f;
+    --sac-color-seat-free: #2f5d40;
+    --sac-color-seat-occupied: #3a352b;
+    --sac-shadow: 0 2px 12px rgba(0, 0, 0, 0.5);
+  }
+}
+
+/* Optionales Hochkontrast-Theme (per body.sac-high-contrast aktivierbar). */
+body.sac-high-contrast {
+  --sac-color-bg: #000000;
+  --sac-color-surface: #000000;
+  --sac-color-text: #ffffff;
+  --sac-color-muted: #ffffff;
+  --sac-color-border: #ffffff;
+  --sac-color-accent: #ffe000;
+  --sac-color-accent-contrast: #000000;
+  --sac-color-seat-free: #00ff7f;
+  --sac-color-seat-self: #ffe000;
+  --sac-color-speaking: #ffe000;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  :root {
+    --sac-motion-duration: 0ms;
+  }
+}

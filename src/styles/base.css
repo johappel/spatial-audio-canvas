@@ -1,0 +1,57 @@
+/* Globale Basis-Styles. Bewusst schlicht, hoher Kontrast, grosse Ziele. */
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
+html,
+body {
+  margin: 0;
+  padding: 0;
+}
+
+body {
+  font-family: var(--sac-font);
+  font-size: var(--sac-font-size);
+  line-height: 1.5;
+  min-height: 100vh;
+  background: var(--sac-color-bg);
+  color: var(--sac-color-text);
+}
+
+#main {
+  display: block;
+}
+
+:focus-visible {
+  outline: var(--sac-focus-ring);
+  outline-offset: 2px;
+}
+
+.sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
+}
+
+.skip-link {
+  position: absolute;
+  left: -999px;
+  top: 0;
+  z-index: 100;
+  padding: var(--sac-space-3) var(--sac-space-4);
+  background: var(--sac-color-accent);
+  color: var(--sac-color-accent-contrast);
+  border-radius: 0 0 var(--sac-radius-md) 0;
+}
+
+.skip-link:focus {
+  left: 0;
+}

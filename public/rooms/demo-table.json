@@ -1,0 +1,26 @@
+{
+  "id": "demo-table",
+  "title": "Runder Tisch",
+  "description": "Eine ruhige Gespraechsinsel mit sechs festen Plaetzen.",
+  "defaultIslandId": "table-1",
+  "islands": [
+    {
+      "id": "table-1",
+      "title": "Runder Tisch",
+      "description": "Sechs Plaetze rund um einen gedachten Tisch.",
+      "type": "round_table",
+      "maxParticipants": 6,
+      "centerX": 0,
+      "centerY": 0,
+      "seats": [
+        { "id": "t1-s0", "islandId": "table-1", "label": "Platz 1", "angleDeg": 0, "radius": 1, "x": 0, "z": 1 },
+        { "id": "t1-s1", "islandId": "table-1", "label": "Platz 2", "angleDeg": 60, "radius": 1, "x": 0.866, "z": 0.5 },
+        { "id": "t1-s2", "islandId": "table-1", "label": "Platz 3", "angleDeg": 120, "radius": 1, "x": 0.866, "z": -0.5 },
+        { "id": "t1-s3", "islandId": "table-1", "label": "Platz 4", "angleDeg": 180, "radius": 1, "x": 0, "z": -1 },
+        { "id": "t1-s4", "islandId": "table-1", "label": "Platz 5", "angleDeg": 240, "radius": 1, "x": -0.866, "z": -0.5 },
+        { "id": "t1-s5", "islandId": "table-1", "label": "Platz 6", "angleDeg": 300, "radius": 1, "x": -0.866, "z": 0.5 }
+      ]
+    }
+  ],
+  "ambientSources": []
+}
