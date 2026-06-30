@@ -13,7 +13,10 @@ import {
   $micEnabled,
   $roomConfig,
   $view,
+  $whisperInvite,
+  $whisperPartnerId,
   getLocalParticipant,
+  participantsInIsland,
   removeParticipant,
   upsertParticipant,
 } from '../core/Store';
@@ -25,7 +28,7 @@ import { Announcer } from '../accessibility/Announcer';
 import { loadRoomConfig } from '../room/RoomConfigLoader';
 import { findIsland, findSeat } from '../room/RoomState';
 import { claimSeat, firstFreeSeat, seatNextTo } from '../room/SeatingRules';
-import { computeScreenSeats, spatialFor } from '../room/WorldLayout';
+import { STAGE_ASPECT, computeScreenSeats, spatialFor } from '../room/WorldLayout';
 import { WebSocketSignalingClient } from '../rtc/SignalingClient';
 import { PeerConnectionManager } from '../rtc/PeerConnectionManager';
 import { DataChannelBus } from '../rtc/DataChannelBus';
@@ -34,11 +37,29 @@ import { RemoteStreamRegistry } from '../rtc/RemoteStreamRegistry';
 import { routeVoice } from '../audio/AudioRouting';
 import { VoiceLevelAnalyser } from '../audio/VoiceLevelAnalyser';
 import { AmbientBed } from '../audio/AmbientBed';
+import { VoiceNormalizer } from '../audio/VoiceNormalizer';
+import { IslandMurmurBed } from '../audio/IslandMurmurBed';
+import { ProceduralAmbientPlayer } from '../audio/ProceduralAmbientPlayer';
+import type { MediaPlayback } from '../media/MediaSource';
 import { createBuiltinPlugins } from '../plugins';
-import type { ConversationIsland, MessageChannel, Participant, RoomConfig, Seat } from '../types';
+import type {
+  ConversationIsland,
+  MessageChannel,
+  MessageEnvelope,
+  Participant,
+  RoomConfig,
+  Seat,
+  WhisperPayload,
+} from '../types';
 
 const PALETTE = ['#e8743b', '#3a6ea5', '#5aa469', '#9b5de5', '#f15bb5', '#00bbf9'];
 const DEMO_NAMES = ['Karl', 'Erna', 'Maria'];
+
+// Tuschel-Gain (Phase G): Partner lauter, uebrige Insel fuer das Paar leiser,
+// und Aussenstehende, die selbst tuscheln, fuer mich leiser.
+const WHISPER_PARTNER_BOOST = 1.6;
+const WHISPER_OTHERS_DUCK = 0.25;
+const WHISPER_BYSTANDER_DUCK = 0.4;
 
 export class AppController {
   readonly bus: AppEventBus = new EventBus();
@@ -64,14 +85,28 @@ export class AppController {
   private localAnalyser: VoiceLevelAnalyser | null = null;
   private ambientBed: AmbientBed | null = null;
   private readonly remoteAudioEls = new Map<string, HTMLAudioElement>();
+  private readonly normalizer = new VoiceNormalizer();
+  private readonly spatialGain = new Map<string, number>();
+  private readonly manualVolume = new Map<string, number>();
+  private readonly murmurBeds = new Map<string, IslandMurmurBed>();
+  private readonly murmurDistance = new Map<string, number>();
+  private readonly ambientPlayers = new Map<string, MediaPlayback>();
 
   async init(roomId = 'demo-table'): Promise<void> {
     for (const kind of ['ambience', 'music', 'podcast', 'signal'] as const) {
       this.media.register(createDefaultMediaHandler(kind, kind));
     }
+    // Prozedurale Klangbetten (ohne Audiodatei) fuer Insel-Ambiente.
+    this.media.register({
+      kind: 'procedural',
+      title: 'Prozedurales Klangbett',
+      create: (ctx, destination, source) => new ProceduralAmbientPlayer(ctx, destination, source),
+    });
     const config = await loadRoomConfig(roomId);
     $roomConfig.set(config);
     $currentIslandId.set(config.defaultIslandId);
+
+    this.bus.on('message:received', (envelope) => this.handleWhisperMessage(envelope));
 
     this.pluginHost = new PluginHost(this.buildContext());
     await this.pluginHost.registerAll(createBuiltinPlugins());
@@ -126,7 +161,14 @@ export class AppController {
     this.bus.emit('audio:unlocked', { ok: true });
 
     try {
-      this.localStream = await navigator.mediaDevices.getUserMedia({ audio: true, video: false });
+      this.localStream = await navigator.mediaDevices.getUserMedia({
+        audio: {
+          autoGainControl: true,
+          noiseSuppression: true,
+          echoCancellation: true,
+        },
+        video: false,
+      });
       $micEnabled.set(true);
     } catch (error) {
       console.warn('[AppController] Mikrofon nicht verfuegbar, fahre ohne fort.', error);
@@ -140,6 +182,7 @@ export class AppController {
     }
     this.setupLocalAnalyser();
     this.setupAmbientBed();
+    this.updateAmbientSources();
     this.applySpatialization();
     await this.connectRtc();
     this.startLevelLoop();
@@ -220,8 +263,9 @@ export class AppController {
       const sp = participant ? byId.get(participant.seatId) : undefined;
       if (sp) {
         const { pan, gain } = spatialFor(localScreen, sp);
-        voice.setPan(pan);
-        voice.setGainValue(gain);
+        this.spatialGain.set(participantId, gain);
+        voice.setPan(this.panFor(participantId, pan));
+        voice.setGainValue(this.combinedGain(participantId));
       }
     });
     this.remoteVoices.forEach((peerId, voice) => {
@@ -229,14 +273,236 @@ export class AppController {
       const sp = participant ? byId.get(participant.seatId) : undefined;
       if (sp) {
         const { pan, gain } = spatialFor(localScreen, sp);
-        voice.route.spatializer.setPan(pan);
-        voice.route.spatializer.setGainValue(gain);
+        this.spatialGain.set(peerId, gain);
+        voice.route.spatializer.setPan(this.panFor(peerId, pan));
+        voice.route.spatializer.setGainValue(this.combinedGain(peerId));
       }
     });
+
+    this.updateMurmurBeds(config, byId, localScreen);
+  }
+
+  // Erzeugt/aktualisiert je ENTFERNTER Insel ein Gemurmel-Bett, gepannt an die
+  // Bildschirmposition der Insel. Die Lautstaerke folgt in der Pegelschleife der
+  // Aktivitaet (Belegung + Sprechen) und der Distanz.
+  private updateMurmurBeds(
+    config: RoomConfig,
+    byId: ReadonlyMap<string, { x: number; y: number }>,
+    localScreen: { x: number; y: number },
+  ): void {
+    if (!this.audio.isUnlocked) {
+      return;
+    }
+    const currentId = $currentIslandId.get();
+    const seen = new Set<string>();
+    for (const island of config.islands) {
+      if (island.id === currentId) {
+        continue;
+      }
+      const pts = island.seats
+        .map((s) => byId.get(s.id))
+        .filter((p): p is { x: number; y: number } => Boolean(p));
+      if (pts.length === 0) {
+        continue;
+      }
+      const cx = pts.reduce((a, p) => a + p.x, 0) / pts.length;
+      const cy = pts.reduce((a, p) => a + p.y, 0) / pts.length;
+      const dist = Math.hypot((cx - localScreen.x) * STAGE_ASPECT, cy - localScreen.y);
+      const pan = Math.max(-0.85, Math.min(0.85, (cx - localScreen.x) * 1.5));
+      const distanceFactor = Math.max(0, 1 - dist * 1.1);
+      let bed = this.murmurBeds.get(island.id);
+      if (!bed) {
+        bed = new IslandMurmurBed(this.audio);
+        this.murmurBeds.set(island.id, bed);
+      }
+      bed.setPan(pan);
+      this.murmurDistance.set(island.id, distanceFactor);
+      seen.add(island.id);
+    }
+    for (const [id, bed] of this.murmurBeds) {
+      if (!seen.has(id)) {
+        bed.dispose();
+        this.murmurBeds.delete(id);
+        this.murmurDistance.delete(id);
+      }
+    }
   }
 
   private participant(id: string): Participant | undefined {
     return $participants.get()[id];
+  }
+
+  // Endgain = raeumlich * Auto-Leveling * manuell * Tuschel * Insel-Audio.
+  private combinedGain(id: string): number {
+    const spatial = this.spatialGain.get(id) ?? 1;
+    const manual = this.manualVolume.get(id) ?? 1;
+    return (
+      spatial *
+      this.normalizer.gainFor(id) *
+      manual *
+      this.whisperFactor(id) *
+      this.islandAudioFactor(id)
+    );
+  }
+
+  // Phase E (Stufe 1): echte Stimmen anderer Inseln werden hoererseitig stumm
+  // geschaltet und allein durch das Gemurmel repraesentiert. Der Tuschel-Partner
+  // bleibt immer hoerbar. (Stufe 2 - echtes Track-Scoping/Renegotiation - folgt.)
+  private islandAudioFactor(id: string): number {
+    if (id === $whisperPartnerId.get()) {
+      return 1;
+    }
+    const p = this.participant(id);
+    if (!p) {
+      return 1;
+    }
+    return p.islandId === $currentIslandId.get() ? 1 : 0;
+  }
+
+  // Tuschel-Override: Partner lauter, uebrige Insel leiser; Aussenstehende, die
+  // selbst tuscheln, ebenfalls leiser. Rein hoererseitig (kooperativ).
+  private whisperFactor(id: string): number {
+    const partner = $whisperPartnerId.get();
+    if (partner) {
+      return id === partner ? WHISPER_PARTNER_BOOST : WHISPER_OTHERS_DUCK;
+    }
+    return this.participant(id)?.whisperWith ? WHISPER_BYSTANDER_DUCK : 1;
+  }
+
+  // Beim Tuscheln rueckt die Partnerstimme akustisch in die Mitte.
+  private panFor(id: string, pan: number): number {
+    return id === $whisperPartnerId.get() ? 0 : pan;
+  }
+
+  // Manueller Lautstaerke-Regler je Person (0..2), rein hoererseitig.
+  setParticipantVolume(participantId: string, value: number): void {
+    this.manualVolume.set(participantId, Math.max(0, Math.min(2, value)));
+  }
+
+  getParticipantVolume(participantId: string): number {
+    return this.manualVolume.get(participantId) ?? 1;
+  }
+
+  // --- Tuscheln / privater Dialog (Phase G) ---
+
+  // Bittet eine Person zum Tuscheln. Offline/Demo startet direkt, sonst per
+  // einvernehmlicher Einladung ueber den Whisper-Kanal.
+  requestWhisper(targetId: string): void {
+    const target = this.participant(targetId);
+    if (!target || targetId === this.localId) {
+      return;
+    }
+    if ($whisperPartnerId.get() === targetId) {
+      return;
+    }
+    if (!this.dataChannelBus || targetId.startsWith('demo-')) {
+      this.startWhisper(targetId);
+      return;
+    }
+    this.bus.emit('message:send', {
+      channel: 'whisper',
+      type: 'invite',
+      senderId: this.localId,
+      sentAt: Date.now(),
+      payload: { targetId },
+    });
+    this.announcer.announce(`Tuschel-Einladung an ${target.displayName} gesendet.`);
+  }
+
+  acceptWhisper(): void {
+    const invite = $whisperInvite.get();
+    if (!invite) {
+      return;
+    }
+    this.dataChannelBus?.send('whisper', 'accept', { targetId: invite.fromId });
+    $whisperInvite.set(null);
+    this.startWhisper(invite.fromId);
+  }
+
+  declineWhisper(): void {
+    const invite = $whisperInvite.get();
+    if (!invite) {
+      return;
+    }
+    this.dataChannelBus?.send('whisper', 'decline', { targetId: invite.fromId });
+    $whisperInvite.set(null);
+    this.announcer.announce('Tuschel-Einladung abgelehnt.');
+  }
+
+  endWhisper(): void {
+    const partner = $whisperPartnerId.get();
+    if (!partner) {
+      return;
+    }
+    this.dataChannelBus?.send('whisper', 'end', { targetId: partner });
+    this.setLocalWhisper(undefined);
+    $whisperPartnerId.set(null);
+    this.applySpatialization();
+    this.announcer.announce('Tuscheln beendet.');
+  }
+
+  isWhispering(): boolean {
+    return $whisperPartnerId.get() !== null;
+  }
+
+  private startWhisper(partnerId: string): void {
+    $whisperPartnerId.set(partnerId);
+    this.setLocalWhisper(partnerId);
+    this.applySpatialization();
+    const partner = this.participant(partnerId);
+    this.announcer.announce(
+      `Du tuschelst jetzt mit ${partner?.displayName ?? 'jemandem'}. Andere hoeren euch nur leise.`,
+    );
+  }
+
+  private setLocalWhisper(partnerId: string | undefined): void {
+    const local = getLocalParticipant();
+    if (local) {
+      upsertParticipant({ ...local, whisperWith: partnerId });
+      this.announceLocalPresence();
+    }
+  }
+
+  private handleWhisperMessage(envelope: MessageEnvelope): void {
+    if (envelope.channel !== 'whisper' || envelope.senderId === this.localId) {
+      return;
+    }
+    const payload = envelope.payload as WhisperPayload;
+    switch (envelope.type) {
+      case 'invite': {
+        if (payload.targetId !== this.localId) {
+          return;
+        }
+        if ($whisperPartnerId.get()) {
+          this.dataChannelBus?.send('whisper', 'decline', { targetId: envelope.senderId });
+          return;
+        }
+        const from = this.participant(envelope.senderId);
+        $whisperInvite.set({ fromId: envelope.senderId, fromName: from?.displayName ?? 'Jemand' });
+        this.announcer.announce(`${from?.displayName ?? 'Jemand'} moechte mit dir tuscheln.`, true);
+        break;
+      }
+      case 'accept':
+        if (payload.targetId === this.localId) {
+          this.startWhisper(envelope.senderId);
+        }
+        break;
+      case 'decline':
+        if (payload.targetId === this.localId) {
+          this.announcer.announce('Die Tuschel-Einladung wurde abgelehnt.');
+        }
+        break;
+      case 'end':
+        if (envelope.senderId === $whisperPartnerId.get()) {
+          this.setLocalWhisper(undefined);
+          $whisperPartnerId.set(null);
+          this.applySpatialization();
+          this.announcer.announce('Das Tuscheln wurde beendet.');
+        }
+        break;
+      default:
+        break;
+    }
   }
 
   private participantsSnapshot(): Record<string, Participant> {
@@ -275,6 +541,7 @@ export class AppController {
       $currentIslandId.set(seat.islandId);
     }
     this.applySpatialization();
+    this.updateAmbientSources();
     this.bus.emit('seat:changed', { participantId: this.localId, seatId });
     this.announceLocalPresence();
     if (islandChanged) {
@@ -319,6 +586,7 @@ export class AppController {
       upsertParticipant({ ...local, islandId, seatId: seat.id });
     }
     this.applySpatialization();
+    this.updateAmbientSources();
     this.announceLocalPresence();
     this.announcer.announce(`Du bist jetzt bei: ${island.title}.`);
   }
@@ -340,6 +608,47 @@ export class AppController {
   setAmbientVolume(value: number): void {
     $ambientVolume.set(value);
     this.ambientBed?.setVolume(value);
+    this.ambientPlayers.forEach((player, id) => player.setVolume(this.ambientVolumeFor(id)));
+  }
+
+  // Startet die Klangquellen der aktuellen Insel und stoppt die der anderen.
+  private updateAmbientSources(): void {
+    if (!this.audio.isUnlocked) {
+      return;
+    }
+    const config = $roomConfig.get();
+    if (!config) {
+      return;
+    }
+    const island = findIsland(config, $currentIslandId.get());
+    const wanted = new Set(island?.ambientSourceIds ?? []);
+    for (const [id, player] of this.ambientPlayers) {
+      if (!wanted.has(id)) {
+        player.stop();
+        player.dispose();
+        this.ambientPlayers.delete(id);
+      }
+    }
+    for (const id of wanted) {
+      if (this.ambientPlayers.has(id)) {
+        continue;
+      }
+      const source = (config.ambientSources ?? []).find((s) => s.id === id);
+      if (!source || !this.media.has(source.kind)) {
+        continue;
+      }
+      const player = this.media.create(this.audio.context, this.audio.masterGain, source);
+      player.setVolume(this.ambientVolumeFor(id));
+      player.play();
+      this.ambientPlayers.set(id, player);
+    }
+  }
+
+  private ambientVolumeFor(sourceId: string): number {
+    const config = $roomConfig.get();
+    const source = config?.ambientSources?.find((s) => s.id === sourceId);
+    const base = source?.defaultVolume ?? 0.3;
+    return base * $ambientVolume.get();
   }
 
   private setupLocalAnalyser(): void {
@@ -380,6 +689,13 @@ export class AppController {
           this.remoteVoices.remove(peerId);
           this.remoteAudioEls.get(peerId)?.pause();
           this.remoteAudioEls.delete(peerId);
+          this.normalizer.remove(peerId);
+          this.spatialGain.delete(peerId);
+          this.manualVolume.delete(peerId);
+          if ($whisperPartnerId.get() === peerId) {
+            this.setLocalWhisper(undefined);
+            $whisperPartnerId.set(null);
+          }
           removeParticipant(peerId);
         },
         onRemoteStream: (peerId, stream) => this.handleRemoteStream(peerId, stream),
@@ -448,6 +764,8 @@ export class AppController {
           return;
         }
         const speaking = level > 0.02;
+        this.normalizer.update(participantId, level, speaking);
+        voice.setGainValue(this.combinedGain(participantId));
         if (Math.abs(level - participant.speakingLevel) > 0.015 || speaking !== participant.isSpeaking) {
           upsertParticipant({ ...participant, speakingLevel: level, isSpeaking: speaking });
         }
@@ -474,9 +792,28 @@ export class AppController {
           return;
         }
         const speaking = level > 0.02;
+        this.normalizer.update(peerId, level, speaking);
+        voice.route.spatializer.setGainValue(this.combinedGain(peerId));
         if (Math.abs(level - participant.speakingLevel) > 0.015 || speaking !== participant.isSpeaking) {
           upsertParticipant({ ...participant, speakingLevel: level, isSpeaking: speaking });
         }
+      });
+
+      this.murmurBeds.forEach((bed, islandId) => {
+        const list = participantsInIsland(islandId);
+        if (list.length === 0) {
+          bed.setActivity(0);
+          return;
+        }
+        const speakingSum = list.reduce(
+          (sum, p) => sum + (p.isSpeaking ? p.speakingLevel : 0),
+          0,
+        );
+        // Belegung als Basis + Sprechen als Modulation.
+        const base = Math.min(0.12, list.length * 0.03);
+        const activity = Math.min(0.25, base + speakingSum * 0.5);
+        const distance = this.murmurDistance.get(islandId) ?? 0;
+        bed.setActivity(activity * distance);
       });
 
       this.rafId = requestAnimationFrame(tick);
@@ -489,6 +826,10 @@ export class AppController {
       cancelAnimationFrame(this.rafId);
     }
     this.simVoices.forEach((voice) => voice.dispose());
+    this.murmurBeds.forEach((bed) => bed.dispose());
+    this.murmurBeds.clear();
+    this.ambientPlayers.forEach((player) => player.dispose());
+    this.ambientPlayers.clear();
     this.ambientBed?.dispose();
     this.peers?.close();
   }

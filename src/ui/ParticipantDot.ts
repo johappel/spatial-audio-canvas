@@ -70,6 +70,14 @@ export class ParticipantDot extends LitElement {
     .mute {
       font-size: 0.8rem;
     }
+    .whisper {
+      font-size: 0.8rem;
+      color: var(--sac-color-accent);
+    }
+    .dot.whisper {
+      border-style: dashed;
+      border-color: var(--sac-color-accent);
+    }
     @media (prefers-reduced-motion: reduce) {
       .dot {
         transition: none;
@@ -88,13 +96,15 @@ export class ParticipantDot extends LitElement {
     const scale = this.reducedMotion || !active ? 1 : 1 + intensity * 0.45;
     return html`
       <div
-        class="dot ${active ? 'active' : ''} ${participant.isLocal ? 'self' : ''}"
+        class="dot ${active ? 'active' : ''} ${participant.isLocal ? 'self' : ''} ${participant.whisperWith ? 'whisper' : ''}"
         style="--dot-color:${participant.color}; --level:${intensity.toFixed(3)}; transform: scale(${scale.toFixed(3)});"
       >
         ${initials(participant.displayName)}
       </div>
       <span class="name">
-        ${participant.displayName}${participant.isMuted ? html` <span class="mute">(stumm)</span>` : ''}
+        ${participant.displayName}${participant.isMuted
+          ? html` <span class="mute">(stumm)</span>`
+          : ''}${participant.whisperWith ? html` <span class="whisper">(tuschelt)</span>` : ''}
       </span>
     `;
   }

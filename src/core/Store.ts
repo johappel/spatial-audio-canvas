@@ -11,6 +11,9 @@ export const $currentIslandId = atom<string>('');
 export const $participants = map<Record<string, Participant>>({});
 export const $micEnabled = atom<boolean>(false);
 export const $ambientVolume = atom<number>(0.2);
+// Tuscheln (Phase G): aktueller Partner und eingehende Einladung.
+export const $whisperPartnerId = atom<string | null>(null);
+export const $whisperInvite = atom<{ fromId: string; fromName: string } | null>(null);
 export const $reducedMotion = atom<boolean>(
   typeof window !== 'undefined' &&
     window.matchMedia?.('(prefers-reduced-motion: reduce)').matches === true,

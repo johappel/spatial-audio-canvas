@@ -53,10 +53,33 @@ export class AudioControls extends LitElement {
     input[type='range'] {
       min-width: 140px;
     }
+    .people {
+      display: flex;
+      flex-direction: column;
+      gap: var(--sac-space-2);
+      width: 100%;
+    }
+    .person {
+      display: flex;
+      gap: var(--sac-space-2);
+      align-items: center;
+      flex-wrap: wrap;
+    }
+    .person-name {
+      min-width: 90px;
+    }
   `;
 
   private demoParticipants() {
     return Object.values(this.participants.value).filter((p) => p.id.startsWith('demo-'));
+  }
+
+  private otherParticipants() {
+    return Object.values(this.participants.value).filter((p) => !p.isLocal);
+  }
+
+  private setPersonVolume(id: string, event: Event): void {
+    getAppController().setParticipantVolume(id, Number((event.target as HTMLInputElement).value));
   }
 
   private setAmbient(event: Event): void {
@@ -105,6 +128,25 @@ export class AudioControls extends LitElement {
             @input=${(event: Event) => this.setAmbient(event)}
           />
         </label>
+
+        ${this.otherParticipants().length > 0
+          ? html`<div class="people" role="group" aria-label="Lautstaerke einzelner Personen">
+              ${this.otherParticipants().map(
+                (p) => html`<label class="person">
+                  <span class="person-name">${p.displayName}</span>
+                  <input
+                    type="range"
+                    min="0"
+                    max="2"
+                    step="0.05"
+                    .value=${String(getAppController().getParticipantVolume(p.id))}
+                    aria-label=${`Lautstaerke von ${p.displayName}`}
+                    @input=${(event: Event) => this.setPersonVolume(p.id, event)}
+                  />
+                </label>`,
+              )}
+            </div>`
+          : ''}
 
         <button
           class="contrast"

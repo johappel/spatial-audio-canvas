@@ -34,7 +34,16 @@ export class AudioEngine {
     this.ctx = new Ctor();
     this.master = this.ctx.createGain();
     this.master.gain.value = 1;
-    this.master.connect(this.ctx.destination);
+    // Master-Limiter: faengt Spitzen ab, wenn leise Stimmen angehoben werden,
+    // damit das Auto-Leveling nicht uebersteuert.
+    const limiter = this.ctx.createDynamicsCompressor();
+    limiter.threshold.value = -6;
+    limiter.knee.value = 6;
+    limiter.ratio.value = 12;
+    limiter.attack.value = 0.003;
+    limiter.release.value = 0.25;
+    this.master.connect(limiter);
+    limiter.connect(this.ctx.destination);
     if (this.ctx.state === 'suspended') {
       await this.ctx.resume();
     }

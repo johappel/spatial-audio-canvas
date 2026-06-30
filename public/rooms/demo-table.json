@@ -12,6 +12,10 @@
       "maxParticipants": 6,
       "centerX": -1,
       "centerY": 0,
+      "accentColor": "#e8743b",
+      "icon": "\u2615",
+      "featured": true,
+      "ambientSourceIds": ["amb-cafe"],
       "seats": [
         { "id": "t1-s0", "islandId": "table-1", "label": "Platz 1", "angleDeg": 0, "radius": 1, "x": 0, "z": 1 },
         { "id": "t1-s1", "islandId": "table-1", "label": "Platz 2", "angleDeg": 60, "radius": 1, "x": 0.866, "z": 0.5 },
@@ -29,6 +33,9 @@
       "maxParticipants": 4,
       "centerX": 1,
       "centerY": 0,
+      "accentColor": "#3a6ea5",
+      "icon": "\u2728",
+      "ambientSourceIds": ["amb-window"],
       "seats": [
         { "id": "t2-s0", "islandId": "table-2", "label": "Fensterplatz 1", "angleDeg": 0, "radius": 1, "x": 0, "z": 1 },
         { "id": "t2-s1", "islandId": "table-2", "label": "Fensterplatz 2", "angleDeg": 90, "radius": 1, "x": 1, "z": 0 },
@@ -37,5 +44,26 @@
       ]
     }
   ],
-  "ambientSources": []
+  "ambientSources": [
+    {
+      "id": "amb-cafe",
+      "title": "Cafe-Atmosphaere",
+      "kind": "procedural",
+      "src": "cafe-room",
+      "islandId": "table-1",
+      "loop": true,
+      "defaultVolume": 0.5,
+      "userControllable": true
+    },
+    {
+      "id": "amb-window",
+      "title": "Leiser Fensterhauch",
+      "kind": "procedural",
+      "src": "window-air",
+      "islandId": "table-2",
+      "loop": true,
+      "defaultVolume": 0.4,
+      "userControllable": true
+    }
+  ]
 }

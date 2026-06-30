@@ -36,8 +36,10 @@ export class VoiceSpatializer {
     this.gain.gain.value = computeGain(distance, sameIsland);
   }
 
+  // Erlaubt Werte > 1, damit das Auto-Leveling leise Stimmen anheben kann.
+  // Der Master-Limiter faengt resultierende Spitzen ab.
   setGainValue(value: number): void {
-    this.gain.gain.value = Math.max(0, Math.min(1, value));
+    this.gain.gain.value = Math.max(0, Math.min(6, value));
   }
 
   dispose(): void {

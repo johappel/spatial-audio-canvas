@@ -27,6 +27,11 @@ export type ConversationIsland = {
   centerY: number;
   seats: Seat[];
   ambientSourceIds?: string[];
+  // Optionale visuelle Gestaltung (Phase B). Fehlen sie, gilt das Standard-Design.
+  backgroundImage?: string; // URL/Pfad eines Hintergrundbilds fuer die Insel
+  accentColor?: string; // CSS-Farbe fuer Rahmen/Akzent der Insel
+  icon?: string; // kurzes Symbol/Emoji als Inselkennung
+  featured?: boolean; // hervorgehobene Insel (groesser, im Vordergrund)
 };
 
 export type Seat = {
@@ -51,9 +56,11 @@ export type Participant = {
   isMuted: boolean;
   speakingLevel: number; // 0.0 bis 1.0
   isSpeaking: boolean;
+  // Aktueller Tuschel-Partner (paarweise, privater Dialog). Listener-uebergreifend synchronisiert.
+  whisperWith?: string;
 };
 
-export type AmbientKind = 'ambience' | 'music' | 'podcast' | 'signal';
+export type AmbientKind = 'ambience' | 'music' | 'podcast' | 'signal' | 'procedural';
 
 export type AmbientSource = {
   id: string;
@@ -88,7 +95,8 @@ export type CoreMessageChannel =
   | 'chat'
   | 'emote'
   | 'game'
-  | 'sound-gesture';
+  | 'sound-gesture'
+  | 'whisper';
 
 export type MessageChannel = CoreMessageChannel | (string & {});
 
@@ -122,4 +130,10 @@ export type GameMessagePayload = {
 
 export type PresencePayload = {
   participant: Omit<Participant, 'isLocal'>;
+};
+
+// Tuscheln / privater Dialog (Phase G): einvernehmliche Paarbildung.
+export type WhisperPayload = {
+  // Ziel-Teilnehmer der jeweiligen Aktion.
+  targetId: string;
 };
