@@ -1,7 +1,7 @@
 {
   "id": "demo-table",
-  "title": "Runder Tisch",
-  "description": "Eine ruhige Gespraechsinsel mit sechs festen Plaetzen.",
+  "title": "Begegnungsraum",
+  "description": "Zwei Gespraechsinseln: ein runder Tisch und ein Tisch am Fenster.",
   "defaultIslandId": "table-1",
   "islands": [
     {
@@ -10,7 +10,7 @@
       "description": "Sechs Plaetze rund um einen gedachten Tisch.",
       "type": "round_table",
       "maxParticipants": 6,
-      "centerX": 0,
+      "centerX": -1,
       "centerY": 0,
       "seats": [
         { "id": "t1-s0", "islandId": "table-1", "label": "Platz 1", "angleDeg": 0, "radius": 1, "x": 0, "z": 1 },
@@ -19,6 +19,21 @@
         { "id": "t1-s3", "islandId": "table-1", "label": "Platz 4", "angleDeg": 180, "radius": 1, "x": 0, "z": -1 },
         { "id": "t1-s4", "islandId": "table-1", "label": "Platz 5", "angleDeg": 240, "radius": 1, "x": -0.866, "z": -0.5 },
         { "id": "t1-s5", "islandId": "table-1", "label": "Platz 6", "angleDeg": 300, "radius": 1, "x": -0.866, "z": 0.5 }
+      ]
+    },
+    {
+      "id": "table-2",
+      "title": "Tisch am Fenster",
+      "description": "Vier Plaetze fuer ein ruhiges Gespraech.",
+      "type": "cafe_table",
+      "maxParticipants": 4,
+      "centerX": 1,
+      "centerY": 0,
+      "seats": [
+        { "id": "t2-s0", "islandId": "table-2", "label": "Fensterplatz 1", "angleDeg": 0, "radius": 1, "x": 0, "z": 1 },
+        { "id": "t2-s1", "islandId": "table-2", "label": "Fensterplatz 2", "angleDeg": 90, "radius": 1, "x": 1, "z": 0 },
+        { "id": "t2-s2", "islandId": "table-2", "label": "Fensterplatz 3", "angleDeg": 180, "radius": 1, "x": 0, "z": -1 },
+        { "id": "t2-s3", "islandId": "table-2", "label": "Fensterplatz 4", "angleDeg": 270, "radius": 1, "x": -1, "z": 0 }
       ]
     }
   ],

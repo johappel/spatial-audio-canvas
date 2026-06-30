@@ -542,3 +542,7 @@ Das Frontend laeuft vollstaendig statisch auf GitHub Pages (Workflow: `.github/w
 ### Hinweis zu Dependencies
 
 Die gemeldeten `npm audit`-Warnungen betreffen ausschliesslich die Dev-Toolchain (esbuild-Dev-Server via Vitest) und nicht das ausgelieferte statische Build-Artefakt.
+
+### Konfiguration und Tuning
+
+Einstellbare Werte (Sprech-Schwellen, Glaettung, visuelles Feedback, Lautstaerken, Ports, Env-Variablen) und Erweiterungspunkte sind zentral dokumentiert in [docs/configuration.md](docs/configuration.md).

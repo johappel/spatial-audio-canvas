@@ -217,7 +217,17 @@ export class AppController {
     });
     this.remoteVoices.forEach((peerId, voice) => {
       const participant = this.participant(peerId);
-      const view = participant ? bySeat.get(participant.seatId) : undefined;
+      if (!participant) {
+        return;
+      }
+      if (participant.islandId !== island.id) {
+        // Andere Insel: leise und mittig, damit Anwesenheit spuerbar bleibt,
+        // aber das eigene Gespraech nicht ueberlagert wird.
+        voice.route.spatializer.setPan(0);
+        voice.route.spatializer.setGain(1, false);
+        return;
+      }
+      const view = bySeat.get(participant.seatId);
       if (view) {
         voice.route.spatializer.setPan(view.relativeX);
         voice.route.spatializer.setGain(view.relativeDistance, true);
@@ -346,6 +356,11 @@ export class AppController {
       this.dataChannelBus.init();
       this.presence = new PresenceSync(this.bus, this.localId);
       this.presence.init();
+      this.bus.on('message:received', (envelope) => {
+        if (envelope.channel === 'presence') {
+          this.applySpatialization();
+        }
+      });
       await peers.start(this.currentIsland().id);
       this.announceLocalPresence();
     } catch (error) {
