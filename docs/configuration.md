@@ -68,6 +68,41 @@ In den drei Mess-Schleifen (lokal / simuliert / remote):
 - `MAX_GAIN = 0.35` - Obergrenze der Ambiente-Lautstaerke (bewusst leise, damit
   Stimmen wichtiger bleiben). Der Schieberegler skaliert 0..1 auf 0..MAX_GAIN.
 
+### Auto-Leveling und Master-Limiter (src/audio/VoiceNormalizer.ts, AudioEngine.ts)
+
+Pro Stimme wird die Lautheit langsam nachgefuehrt und ausgeglichen (laute leiser,
+leise lauter). Endgain = raeumlich * Auto-Leveling * manueller Regler * Tuschel *
+Insel-Audio. Ein `DynamicsCompressor` als Master-Limiter faengt Spitzen ab.
+
+| Wert (VoiceNormalizer) | Standard | Wirkung                                  |
+| ---------------------- | -------- | ---------------------------------------- |
+| `target`               | `0.08`   | Ziel-Lautheit (RMS).                     |
+| `minGain` / `maxGain`  | `0.5` / `2.4` | Staerkste Daempfung / Anhebung.     |
+| `attack`               | `0.03`   | Nachfuehr-Glaettung (kleiner = traeger). |
+
+Manueller Regler je Person: `setParticipantVolume(id, 0..2)` (UI in AudioControls).
+
+### Getrennte Audioschienen (src/audio/AudioEngine.ts)
+
+- **Stimmen**: `masterGain` -> Limiter -> Ausgang.
+- **Ambiente/Gemurmel**: `ambientGain` -> Ausgang (parallel, NICHT ueber den
+  Limiter). Wichtig, damit Stimmen das Ambiente nicht ducken.
+
+### Gemurmel entfernter Inseln (src/audio/IslandMurmurBed.ts)
+
+Statt echte Stimmen anderer Inseln zu uebertragen, erzeugt ein prozedurales
+Stimmengewirr je Fremdinsel ein Gefuehl von Anwesenheit. Lautstaerke = Belegung
+(leise Basis) + Sprechen (Modulation), gepannt an die Inselposition, gedeckelt
+auf `MAX_GAIN = 0.25`. Echte Stimmen anderer Inseln sind hoererseitig stumm
+(`islandAudioFactor` in AppController); der Tuschel-Partner bleibt hoerbar.
+
+### Mikrofon und Windows-Ducking (src/app/AppController.ts)
+
+`getUserMedia` nutzt `autoGainControl` + `noiseSuppression`, aber bewusst
+`echoCancellation: false`. Mit aktiver Echounterdrueckung oeffnet Chrome die
+Ausgabe im "Communications"-Modus, woraufhin Windows beim Beitritt eines zweiten
+Nutzers alle anderen Klaenge (Ambiente) stark absenkt. Kopfhoerer sind empfohlen.
+
 ## 4. Design (src/styles/tokens.css)
 
 Alle Farben, Abstaende, Radien, Tap-Ziele und Bewegungsdauer sind CSS Custom
@@ -85,6 +120,22 @@ Seat-Koordinaten: `x` = links/rechts, `z` = vorne/hinten; `angleDeg` = Position
 auf dem Kreis (0 Grad oben, im Uhrzeigersinn). Hilfsberechnung:
 `computeSeatPositions(count)` in `src/room/SeatLayout.ts`.
 
+Optionale Insel-Gestaltung (`ConversationIsland`):
+
+| Feld              | Wirkung                                                    |
+| ----------------- | ---------------------------------------------------------- |
+| `accentColor`     | Akzentfarbe fuer Rahmen/Hintergrund der Insel (CSS-Farbe). |
+| `backgroundImage` | Hintergrundbild der Insel (URL/Pfad).                      |
+| `icon`            | Symbol/Emoji vor dem Inseltitel.                           |
+| `featured`        | Hervorgehobene Insel (groesser, im Vordergrund).           |
+
+Klangquellen (`RoomConfig.ambientSources` + `ConversationIsland.ambientSourceIds`):
+Eine `AmbientSource` mit `kind: "procedural"` erzeugt ein dateifreies Klangbett
+(Preset ueber `src`, z. B. `cafe-room`, `window-air`). Die Quellen der aktuellen
+Insel starten beim Betreten/Inselwechsel automatisch; der Hintergrund-Regler
+skaliert sie. Datei-basierte Typen (`ambience`/`music`/`podcast`/`signal`) laufen
+ueber `AmbientSourcePlayer` und brauchen eine erreichbare `src`-Datei.
+
 ## 6. Erweiterungspunkte (kein Kernumbau noetig)
 
 | Ziel                | Wo                                                     |
@@ -94,6 +145,10 @@ auf dem Kreis (0 Grad oben, im Uhrzeigersinn). Hilfsberechnung:
 | Neuer Medientyp     | `media.register(handler)` (MediaSourceRegistry)        |
 | Neue UI-Region      | `ctx.ui.mount(region, contribution)`                   |
 | Neue Nachrichtenart | `ctx.sendMessage(channel, type, payload)` + Listener auf `message:received` |
+| Insel-Scoping       | im Listener `envelope.islandId !== ctx.localIslandId()` verwerfen (Standard ist raumweit) |
+
+Plugin-Skeleton (Vorlage) und die `AppContext`-Oberflaeche stehen in `AGENTS.md`
+unter "Plugin-Skeleton".
 
 ## 7. Tests und Build
 
@@ -121,3 +176,25 @@ Inselpositionen kommen aus `centerX`/`centerY` der Raumkonfiguration
 
 Bewegungsanimation: `src/ui/WorldCanvas.ts`, CSS-Transition `left/top 600ms`.
 Bei `prefers-reduced-motion` entfaellt das Gleiten (Klasse `.node.reduced`).
+
+## 9. Plugins, Kanaele und Insel-Scoping
+
+Eingebaute Plugins (`src/plugins/`): `chat`, `emotes`, `sound-gestures`, `games`,
+`watch`. Ein Plugin-Skeleton (Vorlage) steht in `AGENTS.md` -> "Plugin-Skeleton".
+
+Nachrichten tragen die Absender-Insel (`MessageEnvelope.islandId`). Reichweite:
+
+| Interaktion   | Reichweite                                             |
+| ------------- | ------------------------------------------------------ |
+| Presence      | raumweit (alle Inseln sehen Anwesenheit).              |
+| Chat          | Raum-Chat (eigene Insel) oder global per Umschalter.   |
+| Emotes        | eigene Insel; "wave" (Winken) raumweit.                |
+| Spiele        | eigene Insel.                                          |
+| Tuscheln      | paarweise, raumweit (Partner bleibt hoerbar).          |
+| Watch (Video) | je Insel ein synchronisiertes YouTube-Video.           |
+
+Watch-Sync (`src/plugins/watch/`): Laden/Play/Pause laufen ueber den Kanal
+`watch`. Spaet Beitretende und Inselwechsel werden ueber eine `request`/`state`-
+Antwort abgeglichen (ausgeloest durch `datachannel:open` und `$currentIslandId`).
+Datenschutz: YouTube wird erst beim Laden eines Videos nachgeladen
+(`youtube-nocookie`), siehe README.

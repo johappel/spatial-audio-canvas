@@ -835,17 +835,84 @@ Dieser Abschnitt haelt die in der Umsetzung getroffenen Anpassungen fest. Er pra
 - **MediaSourceRegistry**: neue Medientypen (Ambiente, Musik, Podcast, ...) registrierbar.
 - **DataChannelBus + MessageEnvelope**: typisierte, kanalbasierte Nachrichten als Grundlage fuer Chat, Emotes, Spiele, Klanggesten und Presence.
 
+### Plugin-Skeleton (Vorlage)
+
+Ein Plugin ist eine Funktion, die ein `SacPlugin` (Manifest + `setup`) liefert und
+in `src/plugins/index.ts` registriert wird. `setup(ctx)` erhaelt den `AppContext`
+und haengt UI und/oder Nachrichten-Handler ein. Vorlage `src/plugins/my-plugin/index.ts`:
+
+```ts
+import type { SacPlugin } from '../../core/PluginManifest';
+
+export function createMyPlugin(): SacPlugin {
+  return {
+    manifest: {
+      id: 'my-plugin',
+      title: 'Mein Plugin',
+      version: '0.1.0',
+      description: 'Kurzbeschreibung.',
+      capabilities: ['message', 'ui'],
+    },
+    setup(ctx) {
+      // 1) Optionale Oberflaeche in eine Region einhaengen.
+      const el = document.createElement('div');
+      el.textContent = 'Hallo Insel';
+      ctx.ui.mount('sidebar', { pluginId: 'my-plugin', element: el, order: 40 });
+
+      // 2) Nachrichten senden - islandId wird automatisch gestempelt.
+      // ctx.sendMessage('my-channel', 'action', { foo: 1 });
+
+      // 3) Nachrichten empfangen und nach Insel filtern.
+      ctx.bus.on('message:received', (envelope) => {
+        if (envelope.channel !== 'my-channel') return;
+        if (envelope.senderId === ctx.localParticipantId()) return; // eigenes Echo
+        if (envelope.islandId && envelope.islandId !== ctx.localIslandId()) return; // nur eigene Insel
+        // envelope.type / envelope.payload verarbeiten ...
+      });
+    },
+  };
+}
+```
+
+Registrieren in `src/plugins/index.ts`:
+
+```ts
+import { createMyPlugin } from './my-plugin';
+// ...
+return [createChatPlugin(), /* ... */, createMyPlugin()];
+```
+
+`AppContext` (was `setup` bekommt):
+
+- `ctx.bus` - App-EventBus (u. a. `message:received`, `datachannel:open`, `seat:changed`).
+- `ctx.sendMessage(channel, type, payload)` - sendet eine Nachricht; stempelt
+  automatisch `senderId` und die aktuelle `islandId`. Offline wird lokal gespiegelt.
+- `ctx.localParticipantId()` / `ctx.localIslandId()` - eigene IDs zum Filtern.
+- `ctx.ui.mount(region, { pluginId, element, order })` - UI einhaengen. Gerenderte
+  Regionen: `sidebar`, `island-toolbar` (`overlay` ist reserviert).
+- `ctx.audio` (AudioEngine), `ctx.klangNodes` (KlangNodeRegistry),
+  `ctx.media` (MediaSourceRegistry), `ctx.announcer` (Screenreader-Ansagen).
+
+Insel-Scoping: Standard ist **raumweiter** Broadcast. Soll eine Interaktion nur
+in der eigenen Insel wirken, im Empfaenger `envelope.islandId !== ctx.localIslandId()`
+verwerfen (so machen es Emotes ausser "wave", Spiele, der Chat-Raummodus und Watch).
+Presence und Tuscheln sind bewusst insel-uebergreifend.
+
+Lit-UI statt rohem DOM: eine `LitElement`-Klasse definieren
+(`customElements.define('sac-...', ...)`), instanziieren und die Instanz mounten
+(siehe `src/plugins/chat/chat-panel.ts` oder `src/plugins/watch/watch-panel.ts`).
+
 ### WebRTC vorgezogen
 
 Anders als in der urspruenglichen Phasenreihenfolge ist die WebRTC-/Signalling-Schicht bereits Teil des Fundaments (austauschbar gehalten). Die lokale Audio-Demo (Phase 2) funktioniert weiterhin ohne Server.
 
 ### Datenmodell erweitert
 
-Zusaetzlich zum Raum-Datenmodell gibt es Nachrichten-/Interaktionstypen: `MessageEnvelope`, `ChatMessagePayload`, `EmotePayload`, `SoundGesturePayload`, `GameMessagePayload`, `PresencePayload` (siehe `src/types/index.ts`).
+Zusaetzlich zum Raum-Datenmodell gibt es Nachrichten-/Interaktionstypen: `MessageEnvelope` (mit optionaler `islandId` fuer Insel-Scoping), `ChatMessagePayload` (mit `scope`), `EmotePayload`, `SoundGesturePayload`, `GameMessagePayload`, `PresencePayload`, `WhisperPayload` (Tuscheln), `WatchPayload` (gemeinsames Video) (siehe `src/types/index.ts`).
 
 ### Erweiterte Verzeichnisstruktur
 
-Ergaenzend zur obigen Struktur: `src/core/`, `src/media/`, `src/app/`, `src/styles/`, `src/plugins/{chat,emotes,sound-gestures,games}/`, `server/`, `docs/`, `.github/workflows/`.
+Ergaenzend zur obigen Struktur: `src/core/`, `src/media/`, `src/app/`, `src/styles/`, `src/plugins/{chat,emotes,sound-gestures,games,watch}/`, `server/`, `docs/`, `.github/workflows/`.
 
 ### Deployment
 
