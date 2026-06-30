@@ -100,3 +100,24 @@ auf dem Kreis (0 Grad oben, im Uhrzeigersinn). Hilfsberechnung:
 - `npm test` - Unit-Tests (Geometrie, Perspektive, Pan/Gain/Glaettung).
 - `npm run build` - Typecheck + Produktionsbuild nach `dist/`.
 - `npm run dev` - Dev-Server mit Hot-Reload.
+
+## 8. Weltkarte und Spatialisierung (src/room/WorldLayout.ts)
+
+Alle Inseln liegen in EINEM Koordinatenraum (keine getrennten Kanaele). Die
+Karte ist stabil; beim Platz-/Inselwechsel gleitet der eigene Avatar ueber den
+Canvas. Nachbarinseln sind sichtbar (gedimmt) und allein durch Distanz leiser.
+
+| Wert            | Datei            | Wirkung                                              |
+| --------------- | ---------------- | ---------------------------------------------------- |
+| `ISLAND_SPACING`| WorldLayout.ts   | Abstand der Inselzentren (groesser = Inseln weiter auseinander, andere Insel leiser). |
+| `SEAT_RADIUS`   | WorldLayout.ts   | Radius der Sitze um das Inselzentrum.                |
+| `STAGE_ASPECT`  | WorldLayout.ts   | Seitenverhaeltnis der Buehne; Canvas nutzt denselben Wert (Kreise bleiben rund). |
+| `PADDING`       | WorldLayout.ts   | Rand im Canvas.                                      |
+| Pan-Faktor      | `spatialFor` (`* 1.5`) | Wie stark seitliche Position auf das Stereo-Pan wirkt (geklemmt auf +/-0.65). |
+| Gain-Abfall     | `spatialFor` (`1 - dist * 1.2`, min 0.06) | Wie schnell entfernte Quellen leiser werden. |
+
+Inselpositionen kommen aus `centerX`/`centerY` der Raumkonfiguration
+(`public/rooms/*.json`). Verschiebe Inseln dort, um die Anordnung zu aendern.
+
+Bewegungsanimation: `src/ui/WorldCanvas.ts`, CSS-Transition `left/top 600ms`.
+Bei `prefers-reduced-motion` entfaellt das Gleiten (Klasse `.node.reduced`).

@@ -850,3 +850,13 @@ Ergaenzend zur obigen Struktur: `src/core/`, `src/media/`, `src/app/`, `src/styl
 ### Deployment
 
 GitHub Pages fuer das Frontend (`.github/workflows/deploy-pages.yml`), separater Signalling-Dienst (`docs/install-ws-service.md`).
+
+### Raeumliches Modell: gemeinsame Weltkarte (statt Kanaele)
+
+Die Gespraechsinseln liegen in einem gemeinsamen Koordinatenraum
+(`src/room/WorldLayout.ts`) und werden als stabile Karte dargestellt
+(`src/ui/WorldCanvas.ts`). Beim Platz-/Inselwechsel gleitet der eigene Avatar
+ueber den Canvas (keine Tischdrehung). Pan/Gain jeder Stimme ergeben sich aus
+der Bildschirmposition relativ zum eigenen Sitz - eine Formel fuer eigene und
+benachbarte Inseln; andere Inseln werden allein durch Distanz leiser. Der
+fruehere per-Insel-Egoblick (`EgoPerspective.ts`) bleibt als getestete Hilfsfunktion erhalten.

@@ -56,6 +56,10 @@ export class SimulatedVoice {
     this.spatializer.setGain(distance, true);
   }
 
+  setGainValue(value: number): void {
+    this.spatializer.setGainValue(value);
+  }
+
   measureLevel(): number {
     return this.analyser.measure();
   }

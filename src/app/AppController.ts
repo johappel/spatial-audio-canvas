@@ -23,9 +23,9 @@ import { SimulatedVoice, createVoiceishBuffer } from '../audio/SimulatedVoice';
 import { MediaSourceRegistry, createDefaultMediaHandler } from '../media/MediaSourceRegistry';
 import { Announcer } from '../accessibility/Announcer';
 import { loadRoomConfig } from '../room/RoomConfigLoader';
-import { findIsland } from '../room/RoomState';
-import { claimSeat, firstFreeSeat } from '../room/SeatingRules';
-import { computeEgoViews } from '../room/EgoPerspective';
+import { findIsland, findSeat } from '../room/RoomState';
+import { claimSeat, firstFreeSeat, seatNextTo } from '../room/SeatingRules';
+import { computeScreenSeats, spatialFor } from '../room/WorldLayout';
 import { WebSocketSignalingClient } from '../rtc/SignalingClient';
 import { PeerConnectionManager } from '../rtc/PeerConnectionManager';
 import { DataChannelBus } from '../rtc/DataChannelBus';
@@ -199,38 +199,38 @@ export class AppController {
   }
 
   // Berechnet Pan und Distanz aller simulierten Stimmen aus der eigenen Sicht.
+  // Spatialisierung im gemeinsamen Weltraum: Pan/Gain jeder Stimme ergeben
+  // sich aus der Bildschirmposition relativ zum eigenen Sitz - eine Formel fuer
+  // eigene und benachbarte Inseln. Andere Inseln werden allein durch Distanz
+  // leiser (kein harter Kanal-Schnitt).
   private applySpatialization(): void {
-    const island = this.currentIsland();
+    const config = $roomConfig.get();
     const local = getLocalParticipant();
-    if (!local) {
+    if (!config || !local) {
       return;
     }
-    const views = computeEgoViews(island.seats, local.seatId);
-    const bySeat = new Map(views.map((view) => [view.seatId, view]));
+    const screens = computeScreenSeats(config, local.seatId);
+    const byId = new Map(screens.map((seat) => [seat.seatId, seat]));
+    const localScreen = byId.get(local.seatId);
+    if (!localScreen) {
+      return;
+    }
     this.simVoices.forEach((voice, participantId) => {
       const participant = this.participant(participantId);
-      const view = participant ? bySeat.get(participant.seatId) : undefined;
-      if (view) {
-        voice.setPan(view.relativeX);
-        voice.setDistance(view.relativeDistance);
+      const sp = participant ? byId.get(participant.seatId) : undefined;
+      if (sp) {
+        const { pan, gain } = spatialFor(localScreen, sp);
+        voice.setPan(pan);
+        voice.setGainValue(gain);
       }
     });
     this.remoteVoices.forEach((peerId, voice) => {
       const participant = this.participant(peerId);
-      if (!participant) {
-        return;
-      }
-      if (participant.islandId !== island.id) {
-        // Andere Insel: leise und mittig, damit Anwesenheit spuerbar bleibt,
-        // aber das eigene Gespraech nicht ueberlagert wird.
-        voice.route.spatializer.setPan(0);
-        voice.route.spatializer.setGain(1, false);
-        return;
-      }
-      const view = bySeat.get(participant.seatId);
-      if (view) {
-        voice.route.spatializer.setPan(view.relativeX);
-        voice.route.spatializer.setGain(view.relativeDistance, true);
+      const sp = participant ? byId.get(participant.seatId) : undefined;
+      if (sp) {
+        const { pan, gain } = spatialFor(localScreen, sp);
+        voice.route.spatializer.setPan(pan);
+        voice.route.spatializer.setGainValue(gain);
       }
     });
   }
@@ -249,21 +249,59 @@ export class AppController {
     voice?.speak();
   }
 
+  // Platzwechsel - funktioniert inselUEbergreifend: ein Klick auf einen Stuhl
+  // einer anderen Insel ist zugleich der Inselwechsel.
   selectSeat(seatId: string): void {
+    const config = $roomConfig.get();
+    if (!config) {
+      return;
+    }
+    const seat = findSeat(config, seatId);
+    if (!seat) {
+      return;
+    }
     const result = claimSeat(this.occupied, seatId, this.localId);
     if (!result.ok) {
       this.announcer.announce(result.reason ?? 'Platz nicht verfuegbar.', true);
       return;
     }
     this.occupied = result.occupied;
+    const islandChanged = $currentIslandId.get() !== seat.islandId;
     const local = getLocalParticipant();
     if (local) {
-      upsertParticipant({ ...local, seatId });
+      upsertParticipant({ ...local, seatId, islandId: seat.islandId });
+    }
+    if (islandChanged) {
+      $currentIslandId.set(seat.islandId);
     }
     this.applySpatialization();
     this.bus.emit('seat:changed', { participantId: this.localId, seatId });
     this.announceLocalPresence();
-    this.announcer.announce('Du hast den Platz gewechselt.');
+    if (islandChanged) {
+      const island = findIsland(config, seat.islandId);
+      this.announcer.announce('Du bist jetzt bei: ' + (island?.title ?? 'einer anderen Insel') + '.');
+    } else {
+      this.announcer.announce('Du hast den Platz gewechselt.');
+    }
+  }
+
+  // Setzt dich auf einen freien Platz neben einer Person (ggf. andere Insel).
+  sitNextToParticipant(participantId: string): void {
+    const config = $roomConfig.get();
+    const target = this.participant(participantId);
+    if (!config || !target) {
+      return;
+    }
+    const island = findIsland(config, target.islandId);
+    if (!island) {
+      return;
+    }
+    const seat = seatNextTo(island, target.seatId, this.occupied);
+    if (!seat) {
+      this.announcer.announce('Kein freier Platz in der Naehe.', true);
+      return;
+    }
+    this.selectSeat(seat.id);
   }
 
   switchIsland(islandId: string): void {
