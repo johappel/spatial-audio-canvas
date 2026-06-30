@@ -96,7 +96,8 @@ export type CoreMessageChannel =
   | 'emote'
   | 'game'
   | 'sound-gesture'
-  | 'whisper';
+  | 'whisper'
+  | 'watch';
 
 export type MessageChannel = CoreMessageChannel | (string & {});
 
@@ -140,4 +141,13 @@ export type PresencePayload = {
 export type WhisperPayload = {
   // Ziel-Teilnehmer der jeweiligen Aktion.
   targetId: string;
+};
+
+// Gemeinsames Video (Phase F): synchronisiertes Laden/Play/Pause je Insel.
+export type WatchPayload = {
+  videoId?: string;
+  // Wiedergabeposition in Sekunden (bei play/pause/state).
+  time?: number;
+  // Wiedergabezustand (bei state, fuer Late-Join-Sync).
+  playing?: boolean;
 };

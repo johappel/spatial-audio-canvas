@@ -5,6 +5,7 @@ import { createChatPlugin } from './chat';
 import { createEmotesPlugin } from './emotes';
 import { createSoundGesturesPlugin } from './sound-gestures';
 import { createGamesPlugin } from './games';
+import { createWatchPlugin } from './watch';
 
 export function createBuiltinPlugins(): SacPlugin[] {
   return [
@@ -12,5 +13,6 @@ export function createBuiltinPlugins(): SacPlugin[] {
     createEmotesPlugin(),
     createSoundGesturesPlugin(),
     createGamesPlugin(),
+    createWatchPlugin(),
   ];
 }

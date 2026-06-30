@@ -391,7 +391,19 @@ Grundsätze:
 - einfache Möglichkeit, Mikrofon stummzuschalten
 - Räume nur über bewusste Linkweitergabe zugänglich
 
-Für Bildungseinrichtungen sollte vor einem produktiven Einsatz geprüft werden:
+### Hinweis zum optionalen „Gemeinsam schauen" (YouTube)
+
+Das Plugin „Gemeinsam schauen" bindet ein YouTube-Video ein und ist damit die
+einzige Funktion, die eine **externe Quelle** kontaktiert. Aus Datenschutzgründen:
+
+- Die YouTube-IFrame-API wird **erst nach bewusster Nutzerinteraktion** (Laden
+  eines Videos) nachgeladen, nicht beim Seitenaufruf.
+- Der Player nutzt die Domain `youtube-nocookie.com` (eingeschränktes Tracking).
+- Dennoch werden beim Abspielen Daten an Google/YouTube übertragen. Für
+  datensensible Kontexte (z. B. Bildungseinrichtungen) sollte das Plugin
+  deaktiviert oder durch selbst gehostete Medien ersetzt werden.
+
+
 
 - Wo wird die Anwendung gehostet?
 - Welche Signalling- oder Relay-Dienste werden genutzt?

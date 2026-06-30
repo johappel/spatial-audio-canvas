@@ -12,6 +12,7 @@ export type AppEvents = {
   'seat:changed': { participantId: string; seatId: string };
   'audio:unlocked': { ok: true };
   'ui:regions-changed': { region: UiRegion };
+  'datachannel:open': { peerId: string };
 };
 
 export type AppEventBus = EventBus<AppEvents>;

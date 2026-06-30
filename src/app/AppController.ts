@@ -707,7 +707,10 @@ export class AppController {
         },
         onRemoteStream: (peerId, stream) => this.handleRemoteStream(peerId, stream),
         onRemoteData: (_peerId, data) => this.dataChannelBus?.handleIncoming(data),
-        onDataChannelOpen: () => this.announceLocalPresence(),
+        onDataChannelOpen: (peerId) => {
+          this.announceLocalPresence();
+          this.bus.emit('datachannel:open', { peerId });
+        },
       });
       if (this.localStream) {
         peers.setLocalStream(this.localStream);
