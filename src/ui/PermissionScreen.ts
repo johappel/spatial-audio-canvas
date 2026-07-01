@@ -24,6 +24,7 @@ export class PermissionScreen extends LitElement {
     button {
       min-height: var(--sac-tap-target);
       font-size: 1.1rem;
+      font-weight: 600;
       border: none;
       border-radius: var(--sac-radius-sm);
       background: var(--sac-color-accent);
@@ -31,6 +32,7 @@ export class PermissionScreen extends LitElement {
       cursor: pointer;
       padding: 0 var(--sac-space-5);
       margin-top: var(--sac-space-4);
+      width: 100%;
     }
     ul {
       padding-left: var(--sac-space-5);

@@ -40,6 +40,7 @@
   --sac-motion-duration: 240ms;
   --sac-focus-ring: 3px solid var(--sac-color-focus);
   --sac-shadow: 0 2px 10px rgba(29, 27, 22, 0.12);
+  --sac-sidebar-width: clamp(280px, 28vw, 360px);
 }
 
 @media (prefers-color-scheme: dark) {

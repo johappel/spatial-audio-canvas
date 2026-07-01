@@ -29,8 +29,24 @@ export class WorldCanvas extends LitElement {
 
   static properties = {
     openMenuFor: { state: true },
+    hintDismissed: { state: true },
   };
   openMenuFor = '';
+  hintDismissed = false;
+
+  connectedCallback(): void {
+    super.connectedCallback();
+    this.hintDismissed = localStorage.getItem('sac-hint-dismissed') === '1';
+  }
+
+  private dismissHint(): void {
+    this.hintDismissed = true;
+    try {
+      localStorage.setItem('sac-hint-dismissed', '1');
+    } catch {
+      // localStorage nicht verfuegbar - Hinweis bleibt nur fuer diese Sitzung aus.
+    }
+  }
 
   static styles = css`
     .stage {
@@ -113,9 +129,32 @@ export class WorldCanvas extends LitElement {
       outline-offset: 4px;
     }
     .hint {
+      display: flex;
+      gap: var(--sac-space-2);
+      align-items: center;
+      justify-content: center;
+      flex-wrap: wrap;
       text-align: center;
-      color: var(--sac-color-muted);
+      color: var(--sac-color-text);
+      background: var(--sac-color-surface);
+      border: 1px solid var(--sac-color-border);
+      border-radius: var(--sac-radius-md);
+      padding: var(--sac-space-2) var(--sac-space-3);
       margin-top: var(--sac-space-3);
+    }
+    .hint p {
+      margin: 0;
+      flex: 1 1 auto;
+    }
+    .hint button {
+      min-height: var(--sac-tap-target);
+      padding: 0 var(--sac-space-3);
+      border: 1px solid var(--sac-color-border);
+      border-radius: var(--sac-radius-sm);
+      background: var(--sac-color-bg);
+      color: var(--sac-color-text);
+      cursor: pointer;
+      white-space: nowrap;
     }
     .invite {
       display: flex;
@@ -139,7 +178,8 @@ export class WorldCanvas extends LitElement {
     }
     .menu {
       position: absolute;
-      top: 64px;
+      top: 100%;
+      margin-top: var(--sac-space-1);
       left: 50%;
       transform: translateX(-50%);
       display: flex;
@@ -151,6 +191,13 @@ export class WorldCanvas extends LitElement {
       padding: 6px;
       z-index: 5;
       white-space: nowrap;
+      box-shadow: var(--sac-shadow);
+    }
+    .menu.up {
+      top: auto;
+      bottom: 100%;
+      margin-top: 0;
+      margin-bottom: var(--sac-space-1);
     }
     .menu button {
       min-height: var(--sac-tap-target);
@@ -168,9 +215,17 @@ export class WorldCanvas extends LitElement {
     this.openMenuFor = this.openMenuFor === id ? '' : id;
   }
 
-  private renderMenu(p: Participant, controller: ReturnType<typeof getAppController>) {
+  private renderMenu(
+    p: Participant,
+    controller: ReturnType<typeof getAppController>,
+    up: boolean,
+  ) {
     const whispering = this.whisperPartner.value === p.id;
-    return html`<div class="menu" role="menu" aria-label=${`Aktionen fuer ${p.displayName}`}>
+    return html`<div
+      class="menu ${up ? 'up' : ''}"
+      role="menu"
+      aria-label=${`Aktionen fuer ${p.displayName}`}
+    >
       <button
         role="menuitem"
         @click=${() => {
@@ -312,7 +367,7 @@ export class WorldCanvas extends LitElement {
               >
                 ${dot}
               </button>
-              ${this.openMenuFor === p.id ? this.renderMenu(p, controller) : ''}`}
+              ${this.openMenuFor === p.id ? this.renderMenu(p, controller, ny > 0.55) : ''}`}
         </div>`;
       },
     );
@@ -334,10 +389,15 @@ export class WorldCanvas extends LitElement {
       >
         ${backdrops} ${freeSeats} ${dots}
       </div>
-      <p class="hint">
-        Klicke auf einen freien Stuhl, um dich dorthin zu setzen - auch an einem anderen Tisch.
-        Stimmen aus der Naehe sind lauter, weiter entfernte leiser.
-      </p>
+      ${this.hintDismissed
+        ? ''
+        : html`<div class="hint" role="note">
+            <p>
+              Klicke auf einen freien Stuhl, um dich dorthin zu setzen - auch an einem anderen
+              Tisch. Stimmen aus der Naehe sind lauter, weiter entfernte leiser.
+            </p>
+            <button type="button" @click=${() => this.dismissHint()}>Verstanden</button>
+          </div>`}
     `;
   }
 }

@@ -2,6 +2,7 @@
 import { LitElement, html } from 'lit';
 import { getAppController } from '../../app/AppController';
 import type { UiRegion } from '../../core/UiRegions';
+import { ACCORDION_CSS } from '../accordion';
 
 export class PluginRegion extends LitElement {
   static properties = {
@@ -32,7 +33,25 @@ export class PluginRegion extends LitElement {
 
   render() {
     const items = getAppController().ui.get(this.region);
-    return html`${items.map((item) => item.element)}`;
+    // Nur die Sidebar wird als einklappbare Abschnitte dargestellt. Andere
+    // Regionen (z. B. island-toolbar) rendern ihre Beitraege schlicht.
+    if (this.region !== 'sidebar') {
+      return html`${items.map((item) => item.element)}`;
+    }
+    return html`
+      <style>
+        ${ACCORDION_CSS}
+      </style>
+      ${items.map(
+        (item) => html`<details class="sac-accordion" ?open=${item.defaultOpen ?? false}>
+          <summary>
+            ${item.icon ? html`<span class="ac-icon" aria-hidden="true">${item.icon}</span>` : ''}
+            <span class="ac-title">${item.title ?? item.pluginId}</span>
+          </summary>
+          <div class="ac-body">${item.element}</div>
+        </details>`,
+      )}
+    `;
   }
 }
 

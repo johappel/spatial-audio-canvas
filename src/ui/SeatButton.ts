@@ -28,8 +28,8 @@ export class SeatButton extends LitElement {
 
   static styles = css`
     button {
-      width: 96px;
-      height: 96px;
+      width: clamp(64px, 13vw, 96px);
+      height: clamp(64px, 13vw, 96px);
       border-radius: 50%;
       border: 2px dashed var(--sac-color-border);
       background: var(--sac-color-seat-free);

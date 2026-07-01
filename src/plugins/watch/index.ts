@@ -72,7 +72,13 @@ export function createWatchPlugin(): SacPlugin {
         ctx.sendMessage('watch', 'request', {} satisfies WatchPayload);
       });
 
-      ctx.ui.mount('sidebar', { pluginId: 'watch', element: panel, order: 30 });
+      ctx.ui.mount('sidebar', {
+        pluginId: 'watch',
+        element: panel,
+        order: 30,
+        title: 'Gemeinsam schauen',
+        icon: '🎬',
+      });
     },
   };
 }

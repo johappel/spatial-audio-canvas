@@ -79,7 +79,13 @@ export function createGamesPlugin(): SacPlugin {
         }
       });
 
-      ctx.ui.mount('sidebar', { pluginId: 'games', element: panel, order: 20 });
+      ctx.ui.mount('sidebar', {
+        pluginId: 'games',
+        element: panel,
+        order: 20,
+        title: 'Spiele',
+        icon: '🎲',
+      });
     },
   };
 }

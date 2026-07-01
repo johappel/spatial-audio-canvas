@@ -7,6 +7,12 @@ export type UiContribution = {
   pluginId: string;
   element: HTMLElement;
   order?: number;
+  /** Ueberschrift fuer einklappbare Abschnitte (z. B. in der Sidebar). */
+  title?: string;
+  /** Optionales Symbol (Emoji) vor der Ueberschrift. */
+  icon?: string;
+  /** Soll der Abschnitt anfangs geoeffnet sein? Standard: geschlossen. */
+  defaultOpen?: boolean;
 };
 
 export class UiRegionRegistry {

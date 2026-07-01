@@ -37,6 +37,7 @@ export class JoinScreen extends LitElement {
     button {
       min-height: var(--sac-tap-target);
       font-size: 1.1rem;
+      font-weight: 600;
       border: none;
       border-radius: var(--sac-radius-sm);
       background: var(--sac-color-accent);

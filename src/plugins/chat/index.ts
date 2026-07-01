@@ -35,7 +35,14 @@ export function createChatPlugin(): SacPlugin {
           scope: isGlobal ? 'global' : 'island',
         });
       });
-      ctx.ui.mount('sidebar', { pluginId: 'chat', element: panel, order: 10 });
+      ctx.ui.mount('sidebar', {
+        pluginId: 'chat',
+        element: panel,
+        order: 10,
+        title: 'Chat',
+        icon: '💬',
+        defaultOpen: true,
+      });
     },
   };
 }

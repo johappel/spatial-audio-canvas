@@ -18,14 +18,6 @@ export class GamesPanel extends LitElement {
   static styles = css`
     :host {
       display: block;
-      background: var(--sac-color-surface);
-      border: 1px solid var(--sac-color-border);
-      border-radius: var(--sac-radius-md);
-      padding: var(--sac-space-3);
-    }
-    h2 {
-      font-size: 1rem;
-      margin: 0 0 var(--sac-space-2);
     }
     .games {
       display: flex;
@@ -59,7 +51,6 @@ export class GamesPanel extends LitElement {
   render() {
     return html`
       <section aria-label="Spiele">
-        <h2>Spiele</h2>
         <div class="games">
           ${this.games.map(
             (game) => html`<button type="button" @click=${() => this.onStart(game.id)}>

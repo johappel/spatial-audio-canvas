@@ -1,18 +1,12 @@
-import { LitElement, html, css } from 'lit';
+import { LitElement, html, css, unsafeCSS } from 'lit';
+import { ACCORDION_CSS } from './accordion';
 
 export class HelpPanel extends LitElement {
   static styles = css`
     :host {
       display: block;
-      background: var(--sac-color-surface);
-      border: 1px solid var(--sac-color-border);
-      border-radius: var(--sac-radius-md);
-      padding: var(--sac-space-3);
     }
-    h2 {
-      font-size: 1rem;
-      margin: 0 0 var(--sac-space-2);
-    }
+    ${unsafeCSS(ACCORDION_CSS)}
     ul {
       margin: 0;
       padding-left: var(--sac-space-5);
@@ -22,15 +16,20 @@ export class HelpPanel extends LitElement {
 
   render() {
     return html`
-      <section aria-label="Hilfe">
-        <h2>So funktioniert es</h2>
-        <ul>
-          <li>Klicke auf einen freien Platz, um dich dorthin zu setzen.</li>
-          <li>Personen links von dir hoerst du links, rechts hoerst du rechts.</li>
-          <li>Wer spricht, dessen Punkt leuchtet auf.</li>
-          <li>Mit dem Mikrofon-Knopf schaltest du dich stumm oder laut.</li>
-        </ul>
-      </section>
+      <details class="sac-accordion">
+        <summary>
+          <span class="ac-icon" aria-hidden="true">&#9432;</span>
+          <span class="ac-title">So funktioniert es</span>
+        </summary>
+        <div class="ac-body">
+          <ul>
+            <li>Klicke auf einen freien Platz, um dich dorthin zu setzen.</li>
+            <li>Personen links von dir hoerst du links, rechts hoerst du rechts.</li>
+            <li>Wer spricht, dessen Punkt leuchtet auf.</li>
+            <li>Mit dem Mikrofon-Knopf schaltest du dich stumm oder laut.</li>
+          </ul>
+        </div>
+      </details>
     `;
   }
 }

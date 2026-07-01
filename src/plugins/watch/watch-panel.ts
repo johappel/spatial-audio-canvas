@@ -273,14 +273,17 @@ export class WatchPanel extends LitElement {
       <style>
         .sac-watch {
           display: block;
-          background: var(--sac-color-surface);
-          border: 1px solid var(--sac-color-border);
-          border-radius: var(--sac-radius-md);
-          padding: var(--sac-space-3);
         }
-        .sac-watch h2 {
-          font-size: 1rem;
-          margin: 0 0 var(--sac-space-2);
+        .sac-watch .sr-only {
+          position: absolute;
+          width: 1px;
+          height: 1px;
+          padding: 0;
+          margin: -1px;
+          overflow: hidden;
+          clip: rect(0, 0, 0, 0);
+          white-space: nowrap;
+          border: 0;
         }
         .sac-watch form {
           display: flex;
@@ -330,7 +333,6 @@ export class WatchPanel extends LitElement {
         }
       </style>
       <section class="sac-watch" aria-label="Gemeinsam Video schauen">
-        <h2>Gemeinsam schauen</h2>
         <form @submit=${(event: Event) => void this.submit(event)}>
           <label class="sr-only" for="watch-url">YouTube-Link oder Video-ID</label>
           <input id="watch-url" type="text" autocomplete="off" placeholder="YouTube-Link oder ID ..." />

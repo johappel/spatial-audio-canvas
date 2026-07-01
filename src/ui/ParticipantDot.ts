@@ -32,8 +32,8 @@ export class ParticipantDot extends LitElement {
       gap: var(--sac-space-1);
     }
     .dot {
-      width: 56px;
-      height: 56px;
+      width: clamp(44px, 11vw, 56px);
+      height: clamp(44px, 11vw, 56px);
       border-radius: 50%;
       display: grid;
       place-items: center;
@@ -61,7 +61,7 @@ export class ParticipantDot extends LitElement {
     }
     .name {
       font-size: 0.9rem;
-      max-width: 90px;
+      max-width: clamp(64px, 18vw, 96px);
       text-align: center;
       overflow: hidden;
       text-overflow: ellipsis;

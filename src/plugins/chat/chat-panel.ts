@@ -21,24 +21,32 @@ export class ChatPanel extends LitElement {
   static styles = css`
     :host {
       display: block;
-      background: var(--sac-color-surface);
-      border: 1px solid var(--sac-color-border);
-      border-radius: var(--sac-radius-md);
-      padding: var(--sac-space-3);
     }
-    h2 {
-      font-size: 1rem;
-      margin: 0 0 var(--sac-space-2);
+    .sr-only {
+      position: absolute;
+      width: 1px;
+      height: 1px;
+      padding: 0;
+      margin: -1px;
+      overflow: hidden;
+      clip: rect(0, 0, 0, 0);
+      white-space: nowrap;
+      border: 0;
     }
     ul {
       list-style: none;
       margin: 0 0 var(--sac-space-3);
       padding: 0;
-      max-height: 220px;
+      max-height: min(40vh, 260px);
       overflow-y: auto;
       display: flex;
       flex-direction: column;
       gap: var(--sac-space-2);
+    }
+    .empty {
+      color: var(--sac-color-muted);
+      font-size: 0.9rem;
+      margin: 0 0 var(--sac-space-3);
     }
     li {
       background: var(--sac-color-bg);
@@ -106,15 +114,16 @@ export class ChatPanel extends LitElement {
   render() {
     return html`
       <section aria-label="Chat">
-        <h2>Chat</h2>
-        <ul>
-          ${this.entries.map(
-            (entry) => html`<li>
-              ${entry.scope === 'global' ? html`<span class="badge">global</span> ` : ''}
-              <span class="name">${entry.senderName}:</span> ${entry.text}
-            </li>`,
-          )}
-        </ul>
+        ${this.entries.length === 0
+          ? html`<p class="empty">Noch keine Nachrichten. Schreib die erste.</p>`
+          : html`<ul>
+              ${this.entries.map(
+                (entry) => html`<li>
+                  ${entry.scope === 'global' ? html`<span class="badge">global</span> ` : ''}
+                  <span class="name">${entry.senderName}:</span> ${entry.text}
+                </li>`,
+              )}
+            </ul>`}
         <form @submit=${(event: Event) => this.submit(event)}>
           <label class="sr-only" for="chat-input">Nachricht schreiben</label>
           <input id="chat-input" type="text" autocomplete="off" placeholder="Nachricht ..." />
@@ -127,7 +136,7 @@ export class ChatPanel extends LitElement {
             @change=${(event: Event) =>
               (this.scope = (event.target as HTMLInputElement).checked ? 'global' : 'island')}
           />
-          An alle Inseln senden (global)
+          An alle Inseln senden
         </label>
       </section>
     `;

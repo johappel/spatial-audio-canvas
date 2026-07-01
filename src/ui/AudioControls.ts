@@ -17,9 +17,8 @@ export class AudioControls extends LitElement {
   static styles = css`
     .controls {
       display: flex;
-      flex-wrap: wrap;
+      flex-direction: column;
       gap: var(--sac-space-3);
-      align-items: center;
       background: var(--sac-color-surface);
       border: 1px solid var(--sac-color-border);
       border-radius: var(--sac-radius-md);
@@ -35,7 +34,16 @@ export class AudioControls extends LitElement {
       font-size: 1rem;
       cursor: pointer;
     }
+    .primary {
+      display: flex;
+      gap: var(--sac-space-2);
+      align-items: center;
+      flex-wrap: wrap;
+    }
     button.mute {
+      flex: 1 1 auto;
+      min-width: 200px;
+      font-weight: 600;
       background: var(--sac-color-accent);
       color: var(--sac-color-accent-contrast);
       border: none;
@@ -43,30 +51,56 @@ export class AudioControls extends LitElement {
     button.mute.muted {
       background: var(--sac-color-danger);
     }
-    .demo,
-    label.ambient {
+    button.contrast {
+      flex: 0 0 auto;
+    }
+    .settings {
+      display: flex;
+      gap: var(--sac-space-4);
+      flex-wrap: wrap;
+      align-items: flex-end;
+    }
+    .field {
+      display: flex;
+      flex-direction: column;
+      gap: var(--sac-space-1);
+      flex: 1 1 200px;
+      min-width: 160px;
+      font-size: 0.9rem;
+      color: var(--sac-color-muted);
+    }
+    .field input[type='range'] {
+      width: 100%;
+    }
+    .demo {
       display: flex;
       gap: var(--sac-space-2);
       align-items: center;
       flex-wrap: wrap;
     }
-    input[type='range'] {
-      min-width: 140px;
+    .demo-title,
+    .people-title {
+      font-size: 0.85rem;
+      font-weight: 600;
+      color: var(--sac-color-muted);
+      width: 100%;
+      margin: 0;
     }
     .people {
-      display: flex;
-      flex-direction: column;
-      gap: var(--sac-space-2);
-      width: 100%;
+      display: grid;
+      gap: var(--sac-space-3);
     }
     .person {
       display: flex;
-      gap: var(--sac-space-2);
-      align-items: center;
-      flex-wrap: wrap;
+      flex-direction: column;
+      gap: var(--sac-space-1);
     }
     .person-name {
-      min-width: 90px;
+      font-weight: 600;
+      color: var(--sac-color-text);
+    }
+    .person input[type='range'] {
+      width: 100%;
     }
   `;
 
@@ -97,18 +131,41 @@ export class AudioControls extends LitElement {
     const micAvailable = this.mic.value;
     return html`
       <section class="controls" aria-label="Audio-Steuerung">
-        <button
-          class="mute ${muted ? 'muted' : ''}"
-          ?disabled=${!micAvailable}
-          aria-pressed=${muted}
-          @click=${() => getAppController().toggleMute()}
-        >
-          ${!micAvailable ? 'Kein Mikrofon' : muted ? 'Mikrofon ist aus' : 'Mikrofon ist an'}
-        </button>
+        <div class="primary">
+          <button
+            class="mute ${muted ? 'muted' : ''}"
+            ?disabled=${!micAvailable}
+            aria-pressed=${muted}
+            @click=${() => getAppController().toggleMute()}
+          >
+            ${!micAvailable ? 'Kein Mikrofon' : muted ? 'Mikrofon ist aus' : 'Mikrofon ist an'}
+          </button>
+          <button
+            class="contrast"
+            aria-pressed=${this.highContrast}
+            @click=${() => this.toggleContrast()}
+          >
+            Hoher Kontrast: ${this.highContrast ? 'an' : 'aus'}
+          </button>
+        </div>
+
+        <div class="settings">
+          <label class="field">
+            Hintergrund
+            <input
+              type="range"
+              min="0"
+              max="1"
+              step="0.01"
+              .value=${String(this.ambient.value)}
+              @input=${(event: Event) => this.setAmbient(event)}
+            />
+          </label>
+        </div>
 
         ${this.demoParticipants().length > 0
           ? html`<div class="demo" role="group" aria-label="Demo: jemanden sprechen lassen">
-              <span>Demo:</span>
+              <p class="demo-title">Demo</p>
               ${this.demoParticipants().map(
                 (participant) => html`<button @click=${() => getAppController().speakAs(participant.id)}>
                   ${participant.displayName} spricht
@@ -117,20 +174,9 @@ export class AudioControls extends LitElement {
             </div>`
           : ''}
 
-        <label class="ambient">
-          Hintergrund
-          <input
-            type="range"
-            min="0"
-            max="1"
-            step="0.01"
-            .value=${String(this.ambient.value)}
-            @input=${(event: Event) => this.setAmbient(event)}
-          />
-        </label>
-
         ${this.otherParticipants().length > 0
           ? html`<div class="people" role="group" aria-label="Lautstaerke einzelner Personen">
+              <p class="people-title">Lautstaerke einzelner Personen</p>
               ${this.otherParticipants().map(
                 (p) => html`<label class="person">
                   <span class="person-name">${p.displayName}</span>
@@ -147,14 +193,6 @@ export class AudioControls extends LitElement {
               )}
             </div>`
           : ''}
-
-        <button
-          class="contrast"
-          aria-pressed=${this.highContrast}
-          @click=${() => this.toggleContrast()}
-        >
-          Hoher Kontrast: ${this.highContrast ? 'an' : 'aus'}
-        </button>
       </section>
     `;
   }
